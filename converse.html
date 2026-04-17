@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dynamic Content Builder ✨</title>
+
+  <!-- React + Babel -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Marked -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+
+<body class="bg-gradient-to-br from-gray-900 to-gray-800 text-white">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    function App() {
+      const [blocks, setBlocks] = useState([]);
+
+      // Load
+      useEffect(() => {
+        const saved = localStorage.getItem("blocks");
+        if (saved) setBlocks(JSON.parse(saved));
+      }, []);
+
+      // Save
+      useEffect(() => {
+        localStorage.setItem("blocks", JSON.stringify(blocks));
+      }, [blocks]);
+
+      const addBlock = (type) => {
+        setBlocks([...blocks, {
+          id: Date.now(),
+          type,
+          content: "",
+          url: "",
+          level: 1
+        }]);
+      };
+
+      const updateBlock = (id, data) => {
+        setBlocks(blocks.map(b => b.id === id ? { ...b, ...data } : b));
+      };
+
+      const deleteBlock = (id) => {
+        setBlocks(blocks.filter(b => b.id !== id));
+      };
+
+      const move = (index, dir) => {
+        const newArr = [...blocks];
+        const newIndex = index + dir;
+        if (newIndex < 0 || newIndex >= blocks.length) return;
+        [newArr[index], newArr[newIndex]] = [newArr[newIndex], newArr[index]];
+        setBlocks(newArr);
+      };
+
+      const clearAll = () => {
+        if (confirm("Clear all blocks?")) setBlocks([]);
+      };
+
+      return (
+        <div className="flex h-screen">
+
+          {/* Sidebar */}
+          <div className="w-64 bg-gray-900 p-4 border-r border-gray-700">
+            <h1 className="text-xl font-bold mb-4">✨ Builder</h1>
+
+            {["text", "image", "header", "markdown"].map(type => (
+              <button key={type}
+                onClick={() => addBlock(type)}
+                className="w-full mb-3 p-2 rounded bg-gradient-to-r from-indigo-500 to-purple-600 hover:scale-105 transition">
+                + {type}
+              </button>
+            ))}
+
+            <button
+              onClick={clearAll}
+              className="w-full mt-4 p-2 bg-red-500 rounded hover:bg-red-600">
+              Clear All
+            </button>
+          </div>
+
+          {/* Canvas */}
+          <div className="flex-1 p-6 overflow-auto">
+
+            {blocks.length === 0 && (
+              <div className="text-center text-gray-400 mt-20">
+                <h2 className="text-2xl">Start building your page 🚀</h2>
+                <p>Add blocks from the left panel</p>
+              </div>
+            )}
+
+            {blocks.map((block, index) => (
+              <div key={block.id}
+                className="bg-gray-800 p-4 mb-4 rounded-xl shadow-lg hover:shadow-2xl transition">
+
+                {/* Controls */}
+                <div className="flex justify-between mb-3">
+                  <div className="space-x-2">
+                    <button onClick={() => move(index, -1)}>⬆️</button>
+                    <button onClick={() => move(index, 1)}>⬇️</button>
+                  </div>
+                  <button onClick={() => deleteBlock(block.id)}>❌</button>
+                </div>
+
+                {/* TEXT */}
+                {block.type === "text" && (
+                  <textarea
+                    className="w-full p-2 bg-gray-900 border border-gray-600 rounded"
+                    placeholder="Write something..."
+                    value={block.content}
+                    onChange={(e) => updateBlock(block.id, { content: e.target.value })}
+                  />
+                )}
+
+                {/* IMAGE */}
+                {block.type === "image" && (
+                  <div>
+                    <input
+                      className="w-full p-2 mb-2 bg-gray-900 border border-gray-600 rounded"
+                      placeholder="Paste image URL..."
+                      value={block.url}
+                      onChange={(e) => updateBlock(block.id, { url: e.target.value })}
+                    />
+                    {block.url && (
+                      <img src={block.url} className="rounded max-h-60" />
+                    )}
+                  </div>
+                )}
+
+                {/* HEADER */}
+                {block.type === "header" && (
+                  <div>
+                    <select
+                      value={block.level}
+                      onChange={(e) => updateBlock(block.id, { level: Number(e.target.value) })}
+                      className="mb-2 bg-gray-900 p-1 rounded">
+                      <option value={1}>H1</option>
+                      <option value={2}>H2</option>
+                      <option value={3}>H3</option>
+                    </select>
+
+                    <input
+                      className="w-full p-2 bg-gray-900 border border-gray-600 rounded"
+                      value={block.content}
+                      placeholder="Header text"
+                      onChange={(e) => updateBlock(block.id, { content: e.target.value })}
+                    />
+
+                    <div className="mt-2">
+                      {React.createElement(`h${block.level}`, { className: "font-bold text-xl" }, block.content)}
+                    </div>
+                  </div>
+                )}
+
+                {/* MARKDOWN */}
+                {block.type === "markdown" && (
+                  <div>
+                    <textarea
+                      className="w-full p-2 bg-gray-900 border border-gray-600 rounded"
+                      placeholder="Markdown..."
+                      value={block.content}
+                      onChange={(e) => updateBlock(block.id, { content: e.target.value })}
+                    />
+
+                    <div className="mt-3 p-3 bg-gray-700 rounded"
+                      dangerouslySetInnerHTML={{ __html: marked.parse(block.content || "") }}>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+
+    // =============================
+    // TEST CASES
+    // =============================
+    // 1. Add blocks → visible instantly
+    // 2. Edit → updates in real-time
+    // 3. Move up/down → reorders
+    // 4. Delete → removes block
+    // 5. Refresh → persists data
+    // 6. Markdown → renders formatted text
+    // 7. Clear All → resets canvas
+  </script>
+</body>
+</html>
